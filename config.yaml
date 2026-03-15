@@ -1,0 +1,4 @@
+camera_resolution: 720
+
+gesture_settings:
+  smoothing: true
