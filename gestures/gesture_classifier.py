@@ -1,25 +1,46 @@
+import math
+
 class GestureClassifier:
 
     def __init__(self):
-        pass
+        self.prev_pos = None
+
+    def distance(self, p1, p2):
+        return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
 
     def classify(self, fingers, lm):
-        if fingers is None:
-            return "NO HAND"
+        if not lm:
+            return "NO HAND DETECTED"
 
+        wrist = lm[0]
+        thumb_tip = lm[4]
+
+        # 👍 / 👎 THUMB DETECTION
         if fingers[0] == 1 and sum(fingers) == 1:
-            return "THUMBS_UP"
+            if thumb_tip[1] < wrist[1]:
+                return "THUMBS UP"
+            else:
+                return "THUMBS DOWN"
 
-        if fingers[1] == 1 and sum(fingers) == 1:
-            return "MOVE"
+        # ✋ HAND MOVING
+        if self.prev_pos:
+            move = self.distance(wrist, self.prev_pos)
+            if move > 20:
+                self.prev_pos = wrist
+                return "HAND IS MOVING"
 
-        if fingers[1] == 1 and fingers[2] == 1:
+        self.prev_pos = wrist
+
+        # ✋ HAND ACTIVE
+        if fingers and sum(fingers) == 5:
+            return "HAND ACTIVE"
+
+        # 🤏 CLICK (thumb + index)
+        if self.distance(lm[4], lm[8]) < 40:
             return "CLICK"
 
-        if fingers[0] == 1 and fingers[1] == 1:
-            return "RIGHT_CLICK"
+        # 🤏 RIGHT CLICK (thumb + middle)
+        if self.distance(lm[4], lm[12]) < 40:
+            return "RIGHT CLICK"
 
-        if sum(fingers) == 5:
-            return "PALM"
-
-        return "UNKNOWN"
+        return "HAND DETECTED"
