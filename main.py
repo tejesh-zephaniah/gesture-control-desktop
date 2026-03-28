@@ -23,13 +23,14 @@ while True:
     landmarks = processor.extract_landmarks(results, frame.shape)
     fingers = processor.get_finger_states(landmarks)
 
+    # ✅ unified gesture handling
     if landmarks and fingers:
         gesture = classifier.classify(fingers, landmarks)
     else:
         gesture = "NO HAND DETECTED"
 
-    # print only when gesture changes
-    if gesture != prev_gesture:
+    # ✅ print only when changed (VERY IMPORTANT)
+    if gesture and gesture != prev_gesture:
         print("👉", gesture)
         prev_gesture = gesture
 
