@@ -10,9 +10,9 @@ class LandmarkProcessor:
     def extract_landmarks(self, results, frame_shape):
         landmark_list = []
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                for lm in hand_landmarks.landmark:
+        if results.hand_landmarks:
+            for hand_landmarks in results.hand_landmarks:
+                for lm in hand_landmarks:
                     h, w, _ = frame_shape
                     cx, cy = int(lm.x * w), int(lm.y * h)
                     landmark_list.append((cx, cy))
