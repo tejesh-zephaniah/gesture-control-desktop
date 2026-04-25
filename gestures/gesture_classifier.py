@@ -4,7 +4,6 @@ class GestureClassifier:
 
     def __init__(self):
         self.prev_pos = None
-
         self.last_gesture = None
         self.stable_count = 0
         self.cooldown = 0
@@ -14,21 +13,15 @@ class GestureClassifier:
 
     def classify_raw(self, fingers, lm):
         if not lm:
-            return "NO HAND DETECTED"
+            return None
 
-        wrist = lm[0]
+        pos = lm[8]  # index finger tip
         thumb = lm[4]
         index = lm[8]
         middle = lm[12]
         palm = lm[9]
 
-        hand_size = self.distance(wrist, palm)
-
-        if fingers[0] == 1 and sum(fingers) == 1:
-            if thumb[1] < wrist[1] - 10:
-                return "THUMBS UP"
-            elif thumb[1] > wrist[1] + 10:
-                return "THUMBS DOWN"
+        hand_size = self.distance(palm, index)
 
         if fingers and sum(fingers) == 5:
             return "HAND ACTIVE"
@@ -46,14 +39,14 @@ class GestureClassifier:
             return "RIGHT CLICK"
 
         if self.prev_pos:
-            move = self.distance(wrist, self.prev_pos)
-            if move > hand_size * 0.2:
-                self.prev_pos = wrist
-                return "HAND IS MOVING"
+            move = self.distance(pos, self.prev_pos)
+            if move > hand_size * 0.08:
+                self.prev_pos = pos
+                return "MOVE"
 
-        self.prev_pos = wrist
+        self.prev_pos = pos
 
-        return "HAND DETECTED"
+        return None
 
     def classify(self, fingers, lm):
         raw = self.classify_raw(fingers, lm)
@@ -69,8 +62,8 @@ class GestureClassifier:
             self.cooldown -= 1
             return None
 
-        if self.stable_count >= 2:
-            self.cooldown = 8   # blocks next few frames
+        if self.stable_count >= 1:
+            self.cooldown = 2
             return raw
 
         return None
