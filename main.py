@@ -6,11 +6,13 @@ from camera.camera_manager import CameraManager
 from vision.hand_detector import HandDetector
 from vision.landmark_processor import LandmarkProcessor
 from controller.action_mapper import ActionMapper
+from gestures.gesture_classifier import GestureClassifier
 
 camera = CameraManager()
 vision = HandDetector()
 processor = LandmarkProcessor()
 mapper = ActionMapper()
+classifier = GestureClassifier()
 
 last_x, last_y = None, None
 
@@ -35,7 +37,11 @@ while True:
             continue
         x, y = last_x, last_y
 
-    mapper.controller.move_cursor(x, y, frame.shape[1], frame.shape[0])
+    fingers = processor.get_finger_states(landmarks)
+    gesture = classifier.classify(fingers, landmarks)
+
+    if gesture:
+        mapper.execute(gesture, landmarks, frame.shape)
 
     vision.draw(frame, results)
     cv2.imshow("Gesture-Control-Desktop", frame)

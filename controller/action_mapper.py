@@ -10,3 +10,6 @@ class ActionMapper:
             x, y = landmarks[8]
             h, w, _ = frame_shape
             self.controller.move_cursor(x, y, w, h)
+
+        elif gesture == "CLICK":
+            self.controller.left_click()
