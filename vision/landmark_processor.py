@@ -4,18 +4,21 @@ from collections import deque
 class LandmarkProcessor:
 
     def __init__(self):
-        self.history = deque(maxlen=7)  # more frames = more stability
+        self.history = deque(maxlen=7)
 
 
     def extract_landmarks(self, results, frame_shape):
         landmark_list = []
 
-        if results.hand_landmarks:
-            for hand_landmarks in results.hand_landmarks:
-                for lm in hand_landmarks:
-                    h, w, _ = frame_shape
-                    cx, cy = int(lm.x * w), int(lm.y * h)
-                    landmark_list.append((cx, cy))
+        # 🔥 FIX: handle None results safely
+        if results is None or not results.hand_landmarks:
+            return landmark_list
+
+        for hand_landmarks in results.hand_landmarks:
+            for lm in hand_landmarks:
+                h, w, _ = frame_shape
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                landmark_list.append((cx, cy))
 
         return landmark_list
 
@@ -47,20 +50,15 @@ class LandmarkProcessor:
         pip_pt = lm[pip]
         mcp_pt = lm[mcp]
 
-        # distance ratio
         tip_dist = self.distance(wrist, tip_pt)
         pip_dist = self.distance(wrist, pip_pt)
 
         ratio = tip_dist / (pip_dist + 1e-6)
-
-        # angle
         ang = self.angle(mcp_pt, pip_pt, tip_pt)
 
-        # DEAD ZONE (prevents flicker)
         if 1.02 < ratio < 1.08:
-            return None  # uncertain
+            return None
 
-        # final decision
         if ratio > 1.08 and ang > 150:
             return 1
         else:
@@ -73,7 +71,6 @@ class LandmarkProcessor:
 
         fingers = [0, 0, 0, 0, 0]
 
-        # THUMB (distance + angle combo)
         thumb_ratio = self.distance(lm[4], lm[0]) / (self.distance(lm[3], lm[0]) + 1e-6)
         thumb_angle = self.angle(lm[2], lm[3], lm[4])
 
@@ -93,7 +90,6 @@ class LandmarkProcessor:
             val = self.is_finger_up(lm, tip, pip, mcp)
             fingers[i] = val if val is not None else fingers[i]
 
-        # SMOOTHING (major fix)
         self.history.append(fingers)
 
         smoothed = []

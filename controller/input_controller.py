@@ -1,46 +1,79 @@
 import pyautogui
-from utils.smoothing import Smoother
+import time
+import math
 
 class InputController:
 
     def __init__(self):
         self.screen_width, self.screen_height = pyautogui.size()
+
         pyautogui.PAUSE = 0
-        self.smoother = Smoother(alpha=0.2)
+        pyautogui.FAILSAFE = False
+
+        self.prev_x = None
+        self.prev_y = None
+
+        self.last_click_time = 0
+        self.click_delay = 0.25
 
     def move_cursor(self, x, y, frame_width, frame_height):
 
-        x, y = self.smoother.smooth(x, y)
+        # --- 1. normalize ---
+        nx = x / frame_width
+        ny = y / frame_height
 
-        margin_x = 0.02 * frame_width
-        margin_y = 0.02 * frame_height
+        # --- 2. bigger margin = LOWER sensitivity ---
+        margin = 0.2   # 🔥 increased (was 0.1)
 
-        usable_w = frame_width - 2 * margin_x
-        usable_h = frame_height - 2 * margin_y
+        nx = (nx - margin) / (1 - 2 * margin)
+        ny = (ny - margin) / (1 - 2 * margin)
 
-        x = max(margin_x, min(frame_width - margin_x, x))
-        y = max(margin_y, min(frame_height - margin_y, y))
+        nx = max(0, min(1, nx))
+        ny = max(0, min(1, ny))
 
-        norm_x = (x - margin_x) / usable_w
-        norm_y = (y - margin_y) / usable_h
+        # --- 3. aspect ratio fix ---
+        cam_ratio = frame_width / frame_height
+        screen_ratio = self.screen_width / self.screen_height
 
-        gain = 1.8
-        norm_x = 0.5 + (norm_x - 0.5) * gain
-        norm_y = 0.5 + (norm_y - 0.5) * gain
+        if cam_ratio > screen_ratio:
+            scale = screen_ratio / cam_ratio
+            nx = 0.5 + (nx - 0.5) * scale
+        else:
+            scale = cam_ratio / screen_ratio
+            ny = 0.5 + (ny - 0.5) * scale
 
-        norm_x = max(0.001, min(0.999, norm_x))
-        norm_y = max(0.001, min(0.999, norm_y))
+        # --- 4. map ---
+        screen_x = int(nx * self.screen_width)
+        screen_y = int(ny * self.screen_height)
 
-        screen_x = int(norm_x * self.screen_width)
-        screen_y = int(norm_y * self.screen_height)
+        if self.prev_x is None:
+            self.prev_x, self.prev_y = screen_x, screen_y
 
-        screen_x = max(1, min(self.screen_width - 1, screen_x))
-        screen_y = max(1, min(self.screen_height - 1, screen_y))
+        dx = screen_x - self.prev_x
+        dy = screen_y - self.prev_y
 
-        pyautogui.moveTo(screen_x, screen_y, duration=0)
+        dist = math.hypot(dx, dy)
+
+        # --- 5. MORE smoothing (reduces sensitivity) ---
+        if dist < 10:
+            smooth = 0.08   # 🔥 very slow, high precision
+        elif dist < 40:
+            smooth = 0.15
+        else:
+            smooth = 0.25
+
+        smooth_x = int(self.prev_x + dx * smooth)
+        smooth_y = int(self.prev_y + dy * smooth)
+
+        self.prev_x, self.prev_y = smooth_x, smooth_y
+
+        pyautogui.moveTo(smooth_x, smooth_y)
 
     def left_click(self):
-        pyautogui.click()
+        now = time.time()
+        if now - self.last_click_time > self.click_delay:
+            pyautogui.click()
+            self.last_click_time = now
 
     def right_click(self):
         pyautogui.rightClick()

@@ -9,15 +9,24 @@ class HandDetector:
         self.BaseOptions = python.BaseOptions
         self.HandLandmarker = vision.HandLandmarker
         self.HandLandmarkerOptions = vision.HandLandmarkerOptions
+        self.VisionRunningMode = vision.RunningMode
+
+        self.latest_result = None
+
+        def callback(result, output_image, timestamp_ms):
+            self.latest_result = result
 
         self.options = self.HandLandmarkerOptions(
             base_options=self.BaseOptions(
                 model_asset_path="hand_landmarker.task"
             ),
-            num_hands=2
+            num_hands=1,
+            running_mode=self.VisionRunningMode.LIVE_STREAM,
+            result_callback=callback
         )
 
         self.detector = self.HandLandmarker.create_from_options(self.options)
+        self.timestamp = 0
 
     def process(self, frame):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -27,11 +36,13 @@ class HandDetector:
             data=rgb_frame
         )
 
-        results = self.detector.detect(mp_image)
-        return results
+        self.timestamp += 1
+        self.detector.detect_async(mp_image, self.timestamp)
+
+        return self.latest_result
 
     def draw(self, frame, results):
-        if results.hand_landmarks:
+        if results and results.hand_landmarks:
             h, w, _ = frame.shape
 
             for hand_landmarks in results.hand_landmarks:

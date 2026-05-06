@@ -1,12 +1,15 @@
 import cv2
 
 class CameraManager:
-    def __init__(self, camera_index=0):
-        self.cap= cv2.VideoCapture(camera_index)
-    
+    def __init__(self):
+        self.cap = cv2.VideoCapture(0)
+
+        # 🔥 reduce lag
+        self.cap.set(3, 640)
+        self.cap.set(4, 480)
+
     def read_frame(self):
-        ret,frame = self.cap.read()
-        return ret,frame
-    
+        return self.cap.read()
+
     def release(self):
         self.cap.release()
