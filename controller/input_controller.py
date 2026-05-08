@@ -15,6 +15,7 @@ class InputController:
 
         self.last_click_time = 0
         self.click_delay = 0.25
+        self.dragging = False
 
     def move_cursor(self, x, y, frame_width, frame_height):
 
@@ -22,8 +23,8 @@ class InputController:
         nx = x / frame_width
         ny = y / frame_height
 
-        # --- 2. bigger margin = LOWER sensitivity ---
-        margin = 0.2   # 🔥 increased (was 0.1)
+        # --- 2. reduced margin for better precision ---
+        margin = 0.15
 
         nx = (nx - margin) / (1 - 2 * margin)
         ny = (ny - margin) / (1 - 2 * margin)
@@ -54,13 +55,15 @@ class InputController:
 
         dist = math.hypot(dx, dy)
 
-        # --- 5. MORE smoothing (reduces sensitivity) ---
-        if dist < 10:
-            smooth = 0.08   # 🔥 very slow, high precision
+        # --- 5. adaptive smoothing for responsiveness + precision ---
+        if dist < 5:
+            smooth = 0.15   # responsive for tiny movements
+        elif dist < 15:
+            smooth = 0.25   # balanced
         elif dist < 40:
-            smooth = 0.15
+            smooth = 0.35   # faster response
         else:
-            smooth = 0.25
+            smooth = 0.45   # large jumps snap quickly
 
         smooth_x = int(self.prev_x + dx * smooth)
         smooth_y = int(self.prev_y + dy * smooth)
@@ -69,11 +72,24 @@ class InputController:
 
         pyautogui.moveTo(smooth_x, smooth_y)
 
+    def mouse_down(self):
+        if not self.dragging:
+            pyautogui.mouseDown()
+            self.dragging = True
+
+    def mouse_up(self):
+        if self.dragging:
+            pyautogui.mouseUp()
+            self.dragging = False
+
     def left_click(self):
         now = time.time()
         if now - self.last_click_time > self.click_delay:
             pyautogui.click()
             self.last_click_time = now
+
+    def double_click(self):
+        pyautogui.click(clicks=2, interval=0.1)
 
     def right_click(self):
         pyautogui.rightClick()

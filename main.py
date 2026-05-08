@@ -40,8 +40,7 @@ while True:
     fingers = processor.get_finger_states(landmarks)
     gesture = classifier.classify(fingers, landmarks)
 
-    if gesture:
-        mapper.execute(gesture, landmarks, frame.shape)
+    mapper.execute(gesture, landmarks, frame.shape)
 
     vision.draw(frame, results)
     cv2.imshow("Gesture-Control-Desktop", frame)
