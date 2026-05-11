@@ -19,31 +19,18 @@ class InputController:
 
     def move_cursor(self, x, y, frame_width, frame_height):
 
-        # --- 1. normalize ---
         nx = x / frame_width
         ny = y / frame_height
 
-        # --- 2. reduced margin for better precision ---
-        margin = 0.15
+        # FIX: 0.05 instead of 0.15 → cursor can now reach top of screen
+        margin = 0.05
 
         nx = (nx - margin) / (1 - 2 * margin)
         ny = (ny - margin) / (1 - 2 * margin)
 
-        nx = max(0, min(1, nx))
-        ny = max(0, min(1, ny))
+        nx = max(0.0, min(1.0, nx))
+        ny = max(0.0, min(1.0, ny))
 
-        # --- 3. aspect ratio fix ---
-        cam_ratio = frame_width / frame_height
-        screen_ratio = self.screen_width / self.screen_height
-
-        if cam_ratio > screen_ratio:
-            scale = screen_ratio / cam_ratio
-            nx = 0.5 + (nx - 0.5) * scale
-        else:
-            scale = cam_ratio / screen_ratio
-            ny = 0.5 + (ny - 0.5) * scale
-
-        # --- 4. map ---
         screen_x = int(nx * self.screen_width)
         screen_y = int(ny * self.screen_height)
 
@@ -52,25 +39,38 @@ class InputController:
 
         dx = screen_x - self.prev_x
         dy = screen_y - self.prev_y
-
         dist = math.hypot(dx, dy)
 
-        # --- 5. adaptive smoothing for responsiveness + precision ---
-        if dist < 5:
-            smooth = 0.15   # responsive for tiny movements
-        elif dist < 15:
-            smooth = 0.25   # balanced
-        elif dist < 40:
-            smooth = 0.35   # faster response
+        # FIX: snap factor 0.8 for big jumps → no more lag
+        if dist < 3:
+            smooth = 0.1
+        elif dist < 10:
+            smooth = 0.3
+        elif dist < 30:
+            smooth = 0.5
         else:
-            smooth = 0.45   # large jumps snap quickly
+            smooth = 0.8
 
         smooth_x = int(self.prev_x + dx * smooth)
         smooth_y = int(self.prev_y + dy * smooth)
 
         self.prev_x, self.prev_y = smooth_x, smooth_y
-
         pyautogui.moveTo(smooth_x, smooth_y)
+
+    def scroll(self, direction, amount=3):
+        pyautogui.scroll(amount if direction == 'up' else -amount)
+
+    def volume_up(self):
+        pyautogui.press('volumeup')
+
+    def volume_down(self):
+        pyautogui.press('volumedown')
+
+    def screenshot(self):
+        pyautogui.hotkey('win', 'shift', 's')
+
+    def switch_window(self):
+        pyautogui.hotkey('alt', 'tab')
 
     def mouse_down(self):
         if not self.dragging:
