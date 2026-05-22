@@ -20,7 +20,7 @@ class HandDetector:
             base_options=self.BaseOptions(
                 model_asset_path="hand_landmarker.task"
             ),
-            num_hands=1,
+            num_hands=2,
             running_mode=self.VisionRunningMode.LIVE_STREAM,
             result_callback=callback
         )

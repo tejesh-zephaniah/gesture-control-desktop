@@ -6,10 +6,27 @@ class ActionMapper:
     def __init__(self):
         self.controller = InputController()
         self.dragging = False
-        self.last_screenshot_time = 0
-        self.screenshot_delay = 1.5
-        self.last_switch_time = 0
-        self.switch_delay = 0.8
+
+        self.cursor_smoothness = 0.55
+        self.dead_zone = 4
+        self.last_move_point = None
+
+    def _smooth_point(self, x, y):
+        if self.last_move_point is None:
+            self.last_move_point = (x, y)
+            return x, y
+
+        lx, ly = self.last_move_point
+        dx = x - lx
+        dy = y - ly
+
+        if abs(dx) < self.dead_zone and abs(dy) < self.dead_zone:
+            return lx, ly
+
+        nx = int(lx + dx * self.cursor_smoothness)
+        ny = int(ly + dy * self.cursor_smoothness)
+        self.last_move_point = (nx, ny)
+        return nx, ny
 
     def execute(self, gesture, landmarks, frame_shape):
         if gesture is None or not landmarks:
@@ -22,12 +39,14 @@ class ActionMapper:
         h, w, _ = frame_shape
 
         if gesture == "MOVE":
+            x, y = self._smooth_point(x, y)
             self.controller.move_cursor(x, y, w, h)
 
         elif gesture == "DRAG":
             if not self.dragging:
                 self.controller.mouse_down()
                 self.dragging = True
+            x, y = self._smooth_point(x, y)
             self.controller.move_cursor(x, y, w, h)
 
         elif gesture == "CLICK":
@@ -48,26 +67,20 @@ class ActionMapper:
                 self.dragging = False
             self.controller.right_click()
 
-        elif gesture == "SCROLL_UP":
-            self.controller.scroll('up', amount=4)
-
-        elif gesture == "SCROLL_DOWN":
-            self.controller.scroll('down', amount=4)
-
         elif gesture == "VOLUME_UP":
             self.controller.volume_up()
 
         elif gesture == "VOLUME_DOWN":
             self.controller.volume_down()
 
-        elif gesture == "SCREENSHOT":
-            now = time.time()
-            if now - self.last_screenshot_time > self.screenshot_delay:
-                self.last_screenshot_time = now
-                self.controller.screenshot()
+        elif gesture == "THUMBS_UP":
+            self.controller.mute()
 
-        elif gesture == "SWITCH_WINDOW":
-            now = time.time()
-            if now - self.last_switch_time > self.switch_delay:
-                self.last_switch_time = now
-                self.controller.switch_window()
+        elif gesture == "THUMBS_DOWN":
+            self.controller.unmute()
+
+        elif gesture == "PEACE_SIGN":
+            self.controller.screenshot()
+
+        elif gesture == "SHUTDOWN":
+            self.controller.shutdown()

@@ -1,6 +1,9 @@
 import pyautogui
 import time
 import math
+from datetime import datetime
+import os
+from pathlib import Path
 
 class InputController:
 
@@ -16,40 +19,36 @@ class InputController:
         self.last_click_time = 0
         self.click_delay = 0.25
         self.dragging = False
+        self.muted = False
 
     def move_cursor(self, x, y, frame_width, frame_height):
-
         nx = x / frame_width
         ny = y / frame_height
 
-        # FIX: 0.05 instead of 0.15 → cursor can now reach top of screen
-        margin = 0.05
-
-        nx = (nx - margin) / (1 - 2 * margin)
-        ny = (ny - margin) / (1 - 2 * margin)
-
+        # map directly to full camera frame (no margin) and clamp to [0,1]
         nx = max(0.0, min(1.0, nx))
         ny = max(0.0, min(1.0, ny))
 
         screen_x = int(nx * self.screen_width)
         screen_y = int(ny * self.screen_height)
 
-        if self.prev_x is None:
+        if self.prev_x is None or self.prev_y is None:
             self.prev_x, self.prev_y = screen_x, screen_y
+            pyautogui.moveTo(screen_x, screen_y)
+            return
 
         dx = screen_x - self.prev_x
         dy = screen_y - self.prev_y
         dist = math.hypot(dx, dy)
 
-        # FIX: snap factor 0.8 for big jumps → no more lag
         if dist < 3:
-            smooth = 0.1
+            smooth = 1.0
         elif dist < 10:
-            smooth = 0.3
-        elif dist < 30:
-            smooth = 0.5
-        else:
             smooth = 0.8
+        elif dist < 30:
+            smooth = 0.6
+        else:
+            smooth = 0.45
 
         smooth_x = int(self.prev_x + dx * smooth)
         smooth_y = int(self.prev_y + dy * smooth)
@@ -67,29 +66,66 @@ class InputController:
         pyautogui.press('volumedown')
 
     def screenshot(self):
-        pyautogui.hotkey('win', 'shift', 's')
+        """Take a fullscreen screenshot and save to Pictures folder."""
+        try:
+            # Get Pictures folder path
+            pictures_dir = Path.home() / "Pictures"
+            pictures_dir.mkdir(exist_ok=True)
+            
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = pictures_dir / f"Screenshot_{timestamp}.png"
+            
+            # Take fullscreen screenshot
+            screenshot = pyautogui.screenshot()
+            screenshot.save(str(screenshot_path))
+            
+            print(f"Screenshot saved to {screenshot_path}")
+        except Exception as e:
+            print(f"Error taking screenshot: {e}")
 
     def switch_window(self):
         pyautogui.hotkey('alt', 'tab')
 
     def mouse_down(self):
         if not self.dragging:
-            pyautogui.mouseDown()
             self.dragging = True
+            pyautogui.mouseDown(button='left')
 
     def mouse_up(self):
         if self.dragging:
-            pyautogui.mouseUp()
             self.dragging = False
+            pyautogui.mouseUp(button='left')
 
     def left_click(self):
         now = time.time()
         if now - self.last_click_time > self.click_delay:
-            pyautogui.click()
+            pyautogui.click(button='left')
             self.last_click_time = now
 
     def double_click(self):
-        pyautogui.click(clicks=2, interval=0.1)
+        pyautogui.doubleClick()
 
     def right_click(self):
-        pyautogui.rightClick()
+        pyautogui.click(button='right')
+
+    def mute(self):
+        pyautogui.press('volumemute')
+        self.muted = True
+
+    def unmute(self):
+        pyautogui.press('volumemute')
+        self.muted = False
+
+    def shutdown(self):
+        """Trigger system shutdown via OS command (with 10s delay for safety)."""
+        import os
+        import platform
+        print("SHUTDOWN GESTURE DETECTED! System will shut down in 10 seconds...")
+        print("Hold both hands steady to confirm, or press Ctrl+C to cancel.")
+        if platform.system() == 'Windows':
+            os.system('shutdown /s /t 10')
+        elif platform.system() == 'Darwin':
+            os.system('osascript -e "tell app \\"System Events\\" to display dialog \\"Shutting down in 10 seconds\\" buttons {\\"Cancel\\", \\"OK\\"}" && sleep 10 && osascript -e "tell app \\"System Events\\" to shut down"')
+        else:
+            os.system('shutdown -h +0')

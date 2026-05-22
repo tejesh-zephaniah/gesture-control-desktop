@@ -1,100 +1,140 @@
 import math
-import time
 
 class GestureClassifier:
 
-    def __init__(self):
-        self.pinch_frames = 0
-        self.drag_active = False
-        self.drag_start_frames = 5
-        self.click_max_frames = 4
-        self.last_click_time = 0
-        self.last_click_was_recent = False
-        self.double_click_window = 0.35
-        self.last_scroll_time = 0
-        self.scroll_delay = 0.08
-        self.last_volume_time = 0
-        self.volume_delay = 0.4
+    def classify(self, fingers, landmarks, all_hands_landmarks=None):
+        # Check for two-hand peace sign → screenshot
+        if all_hands_landmarks and len(all_hands_landmarks) == 2:
+            if self._is_peace_sign(all_hands_landmarks):
+                return "PEACE_SIGN"
+        
+        # Check for two-hand twist (opposite rotation) → shutdown
+        if all_hands_landmarks and len(all_hands_landmarks) == 2:
+            if self._is_twist(all_hands_landmarks):
+                return "SHUTDOWN"
 
-    def distance(self, p1, p2):
-        return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
-
-    def classify(self, fingers, lm):
-        if not lm or not fingers:
-            self.pinch_frames = 0
-            self.drag_active = False
+        if not landmarks or not fingers:
             return None
 
-        thumb  = lm[4]
-        index  = lm[8]
-        middle = lm[12]
-        palm   = lm[9]
+        # Pinch gesture (thumb + index close together)
+        if self._is_pinch(landmarks, fingers):
+            return "CLICK"
 
-        hand_size = self.distance(palm, index)
-        pinch_distance = self.distance(thumb, index)
-        pinch_threshold = hand_size * 0.28
-        is_pinch = pinch_distance < pinch_threshold and fingers[1] == 1
-
-        # PINCH → click / drag
-        if is_pinch:
-            self.pinch_frames += 1
-            if self.pinch_frames >= self.drag_start_frames:
-                self.drag_active = True
-                return "DRAG"
-            return None
-
-        if self.pinch_frames > 0:
-            if self.pinch_frames <= self.click_max_frames:
-                current_time = time.time()
-                self.pinch_frames = 0
-                self.drag_active = False
-                if self.last_click_was_recent and (current_time - self.last_click_time) < self.double_click_window:
-                    self.last_click_was_recent = False
-                    return "DOUBLE_CLICK"
-                self.last_click_time = current_time
-                self.last_click_was_recent = True
-                return "CLICK"
-            self.pinch_frames = 0
-            self.drag_active = False
-
-        # 2 fingers → SCROLL
-        if fingers[1] == 1 and fingers[2] == 1 and fingers[3] == 0 and fingers[4] == 0:
-            now = time.time()
-            if now - self.last_scroll_time > self.scroll_delay:
-                self.last_scroll_time = now
-                return "SCROLL_UP" if index[1] < palm[1] - hand_size * 0.1 else "SCROLL_DOWN"
-            return None
-
-        # 3 fingers → VOLUME UP
-        if fingers[1] == 1 and fingers[2] == 1 and fingers[3] == 1 and fingers[4] == 0:
-            now = time.time()
-            if now - self.last_volume_time > self.volume_delay:
-                self.last_volume_time = now
-                return "VOLUME_UP"
-            return None
-
-        # 4 fingers → VOLUME DOWN
-        if fingers[0] == 0 and fingers[1] == 1 and fingers[2] == 1 and fingers[3] == 1 and fingers[4] == 1:
-            now = time.time()
-            if now - self.last_volume_time > self.volume_delay:
-                self.last_volume_time = now
-                return "VOLUME_DOWN"
-            return None
-
-        # Pinky only → SCREENSHOT
-        if fingers[1] == 0 and fingers[2] == 0 and fingers[3] == 0 and fingers[4] == 1:
-            return "SCREENSHOT"
-
-        # Shaka 🤙 → SWITCH WINDOW
-        if fingers[0] == 1 and fingers[1] == 0 and fingers[2] == 0 and fingers[3] == 0 and fingers[4] == 1:
-            return "SWITCH_WINDOW"
-
-        # Thumb + middle pinch → RIGHT CLICK
-        if self.distance(thumb, middle) < hand_size * 0.25 and fingers[2] == 1:
-            return "RIGHT_CLICK"
-
-        # Index only → MOVE
-        if fingers[1] == 1 and fingers[2] == 0:
+        # Index finger only => move cursor
+        if fingers == [False, True, False, False, False]:
             return "MOVE"
 
+        # Thumb up / down only
+        if fingers == [True, False, False, False, False]:
+            thumb_tip_y = landmarks[4][1]
+            thumb_ip_y = landmarks[3][1]
+
+            if thumb_tip_y < thumb_ip_y - 15:
+                return "THUMBS_UP"
+            if thumb_tip_y > thumb_ip_y + 15:
+                return "THUMBS_DOWN"
+            return None
+
+        if fingers == [True, True, True, False, False]:
+            return "VOLUME_UP"
+        if fingers == [True, True, True, True, False]:
+            return "VOLUME_DOWN"
+        if fingers == [True, False, False, False, False]:
+            return "DRAG"
+
         return None
+
+    def _is_pinch(self, landmarks, fingers):
+        if len(landmarks) < 9:
+            return False
+
+        if fingers[:2] != [True, True]:
+            return False
+
+        thumb = landmarks[4]
+        index_tip = landmarks[8]
+        wrist = landmarks[0]
+        middle_mcp = landmarks[9]
+
+        hand_size = math.hypot(middle_mcp[0] - wrist[0], middle_mcp[1] - wrist[1])
+        if hand_size < 1:
+            return False
+
+        pinch_dist = math.hypot(thumb[0] - index_tip[0], thumb[1] - index_tip[1])
+        return pinch_dist < hand_size * 0.16
+
+    def _is_twist(self, hands_landmarks):
+        """Detect two-hand twist: opposite wrists rotating (palm vs back of hand)."""
+        if len(hands_landmarks) < 2:
+            return False
+
+        hand1 = hands_landmarks[0]
+        hand2 = hands_landmarks[1]
+
+        if len(hand1) < 9 or len(hand2) < 9:
+            return False
+
+        # Compute palm orientation for each hand using wrist-to-fingers vector
+        # Wrist is index 0, middle finger tip is index 12
+        def get_hand_orientation(lm):
+            wrist = lm[0]
+            middle_tip = lm[12]
+            # Vector from wrist to middle tip
+            dx = middle_tip[0] - wrist[0]
+            dy = middle_tip[1] - wrist[1]
+            # Angle in degrees
+            angle = math.atan2(dy, dx) * 180 / math.pi
+            return angle
+
+        angle1 = get_hand_orientation(hand1)
+        angle2 = get_hand_orientation(hand2)
+
+        # Check if angles differ by ~180 degrees (opposite directions)
+        angle_diff = abs(angle1 - angle2)
+        # Normalize to [0, 180]
+        if angle_diff > 180:
+            angle_diff = 360 - angle_diff
+
+        # If hands are ~opposite (180±45 degrees), it's a twist
+        return 135 < angle_diff < 225
+
+    def _is_peace_sign(self, hands_landmarks):
+        """Detect two-hand peace sign: index and middle fingers extended on both hands."""
+        if len(hands_landmarks) < 2:
+            return False
+
+        # Check if both hands show peace sign (index + middle extended, ring + pinky down)
+        peace_count = 0
+        for hand_lms in hands_landmarks:
+            if len(hand_lms) < 20:
+                continue
+            
+            # Get finger tips and base positions
+            thumb_tip = hand_lms[4]
+            index_tip = hand_lms[8]
+            middle_tip = hand_lms[12]
+            ring_tip = hand_lms[16]
+            pinky_tip = hand_lms[20]
+            
+            # Get wrist position for reference
+            wrist = hand_lms[0]
+            
+            # Compute hand height
+            hand_height = abs(hand_lms[9][1] - wrist[1])
+            if hand_height < 1:
+                continue
+            
+            # For peace sign:
+            # - Index and middle should be extended (tips above their base)
+            # - Ring and pinky should be down (tips below their base)
+            index_extended = index_tip[1] < hand_lms[6][1]  # tip above PIP joint
+            middle_extended = middle_tip[1] < hand_lms[10][1]  # tip above PIP joint
+            ring_down = ring_tip[1] > hand_lms[14][1]  # tip below PIP joint
+            pinky_down = pinky_tip[1] > hand_lms[18][1]  # tip below PIP joint
+            
+            # All conditions must be met
+            if index_extended and middle_extended and ring_down and pinky_down:
+                peace_count += 1
+        
+        # Both hands should show peace sign
+        return peace_count >= 2

@@ -32,8 +32,10 @@ GESTURE_COLORS = {
     "SCROLL_DOWN":   (50, 200, 50),
     "VOLUME_UP":     (255, 255, 0),
     "VOLUME_DOWN":   (200, 200, 0),
-    "SCREENSHOT":    (255, 0, 255),
-    "SWITCH_WINDOW": (0, 255, 255),
+    "THUMBS_UP":     (0, 255, 0),
+    "THUMBS_DOWN":   (0, 0, 255),
+    "PEACE_SIGN":    (255, 0, 255),
+    "SHUTDOWN":      (0, 0, 100),
 }
 
 while True:
@@ -57,7 +59,15 @@ while True:
         last_y = (landmarks[0][1] + landmarks[9][1]) // 2
 
     fingers = processor.get_finger_states(landmarks)
-    gesture = classifier.classify(fingers, landmarks)
+    
+    # Extract all hands for two-hand gesture detection
+    all_hands_landmarks = []
+    if results and results.hand_landmarks:
+        for hand_landmarks in results.hand_landmarks:
+            hand_lms = [(int(lm.x * frame.shape[1]), int(lm.y * frame.shape[0])) for lm in hand_landmarks]
+            all_hands_landmarks.append(hand_lms)
+    
+    gesture = classifier.classify(fingers, landmarks, all_hands_landmarks)
 
     if gesture:
         current_gesture = gesture
@@ -66,12 +76,10 @@ while True:
     mapper.execute(gesture, landmarks, frame.shape)
     vision.draw(frame, results)
 
-    # FPS
     h, w, _ = frame.shape
     cv2.putText(frame, f"FPS: {fps}", (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (180, 180, 180), 2)
 
-    # Active gesture name
     if current_gesture and (time.time() - gesture_display_time < 1.0):
         color = GESTURE_COLORS.get(current_gesture, (255, 255, 255))
         label = current_gesture.replace("_", " ")
@@ -81,16 +89,15 @@ while True:
         cv2.putText(frame, label, (15, h - 28),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.1, color, 2)
 
-    # Cheat sheet
     cheat = [
         "1 finger = MOVE",
         "Pinch = CLICK",
-        "Hold pinch = DRAG",
-        "2 fingers = SCROLL",
-        "3 fingers = VOL UP",
-        "4 fingers = VOL DOWN",
-        "Pinky = SCREENSHOT",
-        "Shaka = ALT+TAB",
+        "2 fingers = VOL UP",
+        "3 fingers = VOL DOWN",
+        "Thumbs up = MUTE",
+        "Thumbs down = UNMUTE",
+        "2-Hand Peace = SCREENSHOT",
+        "2-Hand Twist = SHUTDOWN",
     ]
     for i, line in enumerate(cheat):
         cv2.putText(frame, line, (w - 230, 25 + i * 22),
