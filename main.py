@@ -35,7 +35,6 @@ GESTURE_COLORS = {
     "THUMBS_UP":     (0, 255, 0),
     "THUMBS_DOWN":   (0, 0, 255),
     "PEACE_SIGN":    (255, 0, 255),
-    "SHUTDOWN":      (0, 0, 100),
 }
 
 while True:
@@ -97,7 +96,6 @@ while True:
         "Thumbs up = MUTE",
         "Thumbs down = UNMUTE",
         "2-Hand Peace = SCREENSHOT",
-        "2-Hand Twist = SHUTDOWN",
     ]
     for i, line in enumerate(cheat):
         cv2.putText(frame, line, (w - 230, 25 + i * 22),

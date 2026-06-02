@@ -117,15 +117,3 @@ class InputController:
         pyautogui.press('volumemute')
         self.muted = False
 
-    def shutdown(self):
-        """Trigger system shutdown via OS command (with 10s delay for safety)."""
-        import os
-        import platform
-        print("SHUTDOWN GESTURE DETECTED! System will shut down in 10 seconds...")
-        print("Hold both hands steady to confirm, or press Ctrl+C to cancel.")
-        if platform.system() == 'Windows':
-            os.system('shutdown /s /t 10')
-        elif platform.system() == 'Darwin':
-            os.system('osascript -e "tell app \\"System Events\\" to display dialog \\"Shutting down in 10 seconds\\" buttons {\\"Cancel\\", \\"OK\\"}" && sleep 10 && osascript -e "tell app \\"System Events\\" to shut down"')
-        else:
-            os.system('shutdown -h +0')

@@ -7,11 +7,6 @@ class GestureClassifier:
         if all_hands_landmarks and len(all_hands_landmarks) == 2:
             if self._is_peace_sign(all_hands_landmarks):
                 return "PEACE_SIGN"
-        
-        # Check for two-hand twist (opposite rotation) → shutdown
-        if all_hands_landmarks and len(all_hands_landmarks) == 2:
-            if self._is_twist(all_hands_landmarks):
-                return "SHUTDOWN"
 
         if not landmarks or not fingers:
             return None
@@ -62,41 +57,6 @@ class GestureClassifier:
 
         pinch_dist = math.hypot(thumb[0] - index_tip[0], thumb[1] - index_tip[1])
         return pinch_dist < hand_size * 0.16
-
-    def _is_twist(self, hands_landmarks):
-        """Detect two-hand twist: opposite wrists rotating (palm vs back of hand)."""
-        if len(hands_landmarks) < 2:
-            return False
-
-        hand1 = hands_landmarks[0]
-        hand2 = hands_landmarks[1]
-
-        if len(hand1) < 9 or len(hand2) < 9:
-            return False
-
-        # Compute palm orientation for each hand using wrist-to-fingers vector
-        # Wrist is index 0, middle finger tip is index 12
-        def get_hand_orientation(lm):
-            wrist = lm[0]
-            middle_tip = lm[12]
-            # Vector from wrist to middle tip
-            dx = middle_tip[0] - wrist[0]
-            dy = middle_tip[1] - wrist[1]
-            # Angle in degrees
-            angle = math.atan2(dy, dx) * 180 / math.pi
-            return angle
-
-        angle1 = get_hand_orientation(hand1)
-        angle2 = get_hand_orientation(hand2)
-
-        # Check if angles differ by ~180 degrees (opposite directions)
-        angle_diff = abs(angle1 - angle2)
-        # Normalize to [0, 180]
-        if angle_diff > 180:
-            angle_diff = 360 - angle_diff
-
-        # If hands are ~opposite (180±45 degrees), it's a twist
-        return 135 < angle_diff < 225
 
     def _is_peace_sign(self, hands_landmarks):
         """Detect two-hand peace sign: index and middle fingers extended on both hands."""

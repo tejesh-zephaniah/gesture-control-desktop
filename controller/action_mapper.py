@@ -81,6 +81,3 @@ class ActionMapper:
 
         elif gesture == "PEACE_SIGN":
             self.controller.screenshot()
-
-        elif gesture == "SHUTDOWN":
-            self.controller.shutdown()
