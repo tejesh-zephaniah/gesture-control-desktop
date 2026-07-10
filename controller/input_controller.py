@@ -1,9 +1,17 @@
 import pyautogui
 import time
 import math
+import threading
 from datetime import datetime
 import os
+import platform
 from pathlib import Path
+
+try:
+    import tkinter as tk
+    TK_AVAILABLE = True
+except Exception:
+    TK_AVAILABLE = False
 
 class InputController:
 
@@ -81,8 +89,60 @@ class InputController:
             screenshot.save(str(screenshot_path))
             
             print(f"Screenshot saved to {screenshot_path}")
+            self._show_popup("Screenshot saved", f"Saved to:\n{screenshot_path}")
         except Exception as e:
             print(f"Error taking screenshot: {e}")
+
+    def _show_popup(self, title, message):
+        if not TK_AVAILABLE:
+            return
+
+        def popup():
+            root = tk.Tk()
+            root.overrideredirect(True)
+            root.attributes("-topmost", True)
+            root.attributes("-alpha", 0.96)
+            root.configure(bg="#000001")
+            if platform.system() == "Windows":
+                root.wm_attributes("-transparentcolor", "#000001")
+
+            label = tk.Label(root, text=message, fg="#ffffff", bg="#202020",
+                             font=("Segoe UI", 11, "bold"), justify="left")
+            label.pack(padx=18, pady=16)
+
+            root.update_idletasks()
+            window_w = root.winfo_reqwidth()
+            window_h = root.winfo_reqheight()
+            x = root.winfo_screenwidth() - window_w - 24
+            y = 24
+            root.geometry(f"{window_w}x{window_h}+{x}+{y}")
+
+            canvas = tk.Canvas(root, width=window_w, height=window_h,
+                               bg="#000001", highlightthickness=0)
+            canvas.place(x=0, y=0)
+
+            radius = 18
+            fill = "#202020"
+            canvas.create_rectangle(radius, 0, window_w - radius, window_h,
+                                    fill=fill, width=0)
+            canvas.create_rectangle(0, radius, window_w, window_h - radius,
+                                    fill=fill, width=0)
+            canvas.create_arc(0, 0, radius * 2, radius * 2,
+                              start=90, extent=90, fill=fill, outline=fill)
+            canvas.create_arc(window_w - radius * 2, 0, window_w, radius * 2,
+                              start=0, extent=90, fill=fill, outline=fill)
+            canvas.create_arc(0, window_h - radius * 2, radius * 2, window_h,
+                              start=180, extent=90, fill=fill, outline=fill)
+            canvas.create_arc(window_w - radius * 2, window_h - radius * 2,
+                              window_w, window_h, start=270, extent=90,
+                              fill=fill, outline=fill)
+
+            label.lift()
+            root.after(1800, root.destroy)
+            root.mainloop()
+
+        thread = threading.Thread(target=popup, daemon=True)
+        thread.start()
 
     def switch_window(self):
         pyautogui.hotkey('alt', 'tab')
@@ -110,10 +170,12 @@ class InputController:
         pyautogui.click(button='right')
 
     def mute(self):
-        pyautogui.press('volumemute')
-        self.muted = True
+        if self.muted is None or not self.muted:
+            pyautogui.press('volumemute')
+            self.muted = True
 
     def unmute(self):
-        pyautogui.press('volumemute')
-        self.muted = False
+        if self.muted is None or self.muted:
+            pyautogui.press('volumemute')
+            self.muted = False
 

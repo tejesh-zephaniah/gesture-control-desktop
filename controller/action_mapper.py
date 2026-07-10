@@ -6,6 +6,7 @@ class ActionMapper:
     def __init__(self):
         self.controller = InputController()
         self.dragging = False
+        self.last_gesture = None
 
         self.cursor_smoothness = 0.55
         self.dead_zone = 4
@@ -28,11 +29,14 @@ class ActionMapper:
         self.last_move_point = (nx, ny)
         return nx, ny
 
+        self.last_gesture = gesture
+
     def execute(self, gesture, landmarks, frame_shape):
         if gesture is None or not landmarks:
             if self.dragging:
                 self.controller.mouse_up()
                 self.dragging = False
+            self.last_gesture = gesture
             return
 
         x, y = landmarks[8]
@@ -80,4 +84,7 @@ class ActionMapper:
             self.controller.unmute()
 
         elif gesture == "PEACE_SIGN":
-            self.controller.screenshot()
+            if self.last_gesture != "PEACE_SIGN":
+                self.controller.screenshot()
+
+        self.last_gesture = gesture
