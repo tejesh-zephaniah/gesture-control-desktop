@@ -105,7 +105,6 @@ WINDOW_NAME = "Gesture Control Desktop"
 GESTURE_REFERENCE = [
     ("1 finger", "MOVE cursor"),
     ("Pinch", "LEFT CLICK"),
-    ("Hold pinch and move", "DRAG"),
     ("2 fingers", "VOLUME UP"),
     ("3 fingers", "VOLUME DOWN"),
     ("Thumbs up", "MUTE"),
@@ -118,7 +117,8 @@ sidebar_width = 260
 sidebar_padding = 12
 sidebar_line_height = 28
 sidebar_title_height = 40
-sidebar_height = sidebar_title_height + len(GESTURE_REFERENCE) * sidebar_line_height + sidebar_padding * 2
+sidebar_note_height = 34
+sidebar_height = sidebar_title_height + len(GESTURE_REFERENCE) * sidebar_line_height + sidebar_note_height + sidebar_padding * 2
 camera_width = 360
 camera_height = 270
 camera_x_offset = 0
@@ -167,6 +167,14 @@ def _create_sidebar_window(width, height, x_offset, y_offset=0):
         canvas.create_window(16, offset_y, anchor="nw", window=left)
         canvas.create_window(150, offset_y, anchor="nw", window=right)
         offset_y += 26
+
+    # Separator line and quit note
+    separator_y = offset_y + 4
+    canvas.create_line(16, separator_y, width - 16, separator_y,
+                       fill="#4b4b4b", width=1)
+    note = tk.Label(root, text="Press 'Q' to quit the program", fg="#bbbbbb",
+                    bg=fill, anchor="w", font=("Segoe UI", 8, "italic"))
+    canvas.create_window(16, separator_y + 18, anchor="nw", window=note)
 
     return root
 

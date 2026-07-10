@@ -34,8 +34,6 @@ class GestureClassifier:
             return "VOLUME_UP"
         if fingers == [True, True, True, True, False]:
             return "VOLUME_DOWN"
-        if fingers == [True, False, False, False, False]:
-            return "DRAG"
 
         return None
 

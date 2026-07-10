@@ -1,5 +1,7 @@
 import cv2
 import mediapipe as mp
+import sys
+from pathlib import Path
 
 class HandDetector:
     def __init__(self):
@@ -16,9 +18,15 @@ class HandDetector:
         def callback(result, output_image, timestamp_ms):
             self.latest_result = result
 
+        base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
+        model_path = base_path / "hand_landmarker.task"
+
+        if not model_path.exists():
+            raise FileNotFoundError(f"hand_landmarker.task not found at {model_path}")
+
         self.options = self.HandLandmarkerOptions(
             base_options=self.BaseOptions(
-                model_asset_path="hand_landmarker.task"
+                model_asset_path=str(model_path)
             ),
             num_hands=2,
             running_mode=self.VisionRunningMode.LIVE_STREAM,
